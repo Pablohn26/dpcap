@@ -28,7 +28,7 @@ cabeceras IP.
  
 #define TIPO_EN_VIVO 1 
 #define TIPO_EN_FICHERO 2 
- 
+
 typedef struct { 
   unsigned char byte1; 
   unsigned char byte2; 
@@ -157,7 +157,7 @@ main(int argc, char **argv) {
   bpf_u_int32 mascara_red, direccion_red; 
   pcap_t *fp; 
   char errbuf[PCAP_ERRBUF_SIZE]; 
-  int tipo=-1; 
+  int tipo=-1;
  
   if(argc < 2){ 
  
@@ -172,9 +172,9 @@ main(int argc, char **argv) {
     fprintf(stderr,"Error en el paso de argumentos.\n\tSintaxis: %s -i <interfaz de red> [filtro]\n",argv[0]);   
     return 1;
     }
- 
+    
     tipo=TIPO_EN_VIVO; 
-    //pcap_open_live(argv[2],tipo,1,10,errbuf);
+    fp=pcap_open_live(argv[2],BUFSIZ,1,0,errbuf);
     
     break; 
  
