@@ -158,7 +158,6 @@ main(int argc, char **argv) {
   pcap_t *fp; 
   char errbuf[PCAP_ERRBUF_SIZE]; 
   int tipo=-1;
- 
   if(argc < 2){ 
  
     fprintf(stderr,"Sintaxis:\n\t%s -i <interfaz de red> [filtro]\n\t%s -f <fichero de volcado> [filtro]\n\t%s -l\n", argv[0],argv[0],argv[0]); 
@@ -208,20 +207,31 @@ main(int argc, char **argv) {
   if(argc>3){ 
     /* Obtenemos cuál es la máscara de red asociada al dispositivo abierto: */ 
     /* ***Usar*** pcap_lookupnet */ 
- 
+        if(pcap_lookupnet(argv[2], &direccion_red, &mascara_red, errbuf) == -1){
+            fprintf (stderr, "Error al asignar el filtro");
+        }
+
     /* Compilamos la expresión en "filtro": */ 
-    /* ***Usar*** pcap_compile */ 
+    /* ***Usar*** pcap_compile */
+        if(pcap_compile(fp, &filtro, argv[3], 0, mascara_red) == -1){
+            fprintf (stderr, "Error al compilar el filtro\n");
+        }
      
     /* Establecemos un filtro para el tráfico: */  
  
     /* ***USar pcap_setfilter *** */ 
+        if(pcap_setfilter(fp, &filtro) == -1){
+            fprintf(stderr, "Error al asignar el filtro\n");
+        }
      
     printf("Asignado filtro \"%s\"\n",argv[3]); 
   } 
  
   /* Lee y procesa tramas hasta que se llegue a EOF. */ 
   /* ***Usar*** pcap_loop; */
-  pcap_loop(fp, 15, dispatcher_handler, NULL);
+  if (pcap_loop(fp, 0, dispatcher_handler, NULL) == -1){
+      fprintf(stderr, "Error al capturar paquetes");
+  }
  
   return 0; 
 } 
