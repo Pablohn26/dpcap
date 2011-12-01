@@ -186,6 +186,10 @@ main(int argc, char **argv) {
     tipo=TIPO_EN_FICHERO; 
     /* Apertura del fichero de captura */ 
     /* ***Usar***  pcap_open_offline */ 
+    fp = pcap_open_offline(argv[2],errbuf);
+    if (fp == NULL){
+        fprintf(stderr,"Error al abrir el fichero");
+    }
  
     break; 
  
@@ -217,6 +221,7 @@ main(int argc, char **argv) {
  
   /* Lee y procesa tramas hasta que se llegue a EOF. */ 
   /* ***Usar*** pcap_loop; */
+  pcap_loop(fp, 15, dispatcher_handler, NULL);
  
   return 0; 
 } 
@@ -227,14 +232,15 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   tdatagrama_ip *datagrama;
   ttrama_ethernet *trama;
   /* print pkt timestamp and pkt len */ 
-  //printf("%ld : %ld (%ld)\n", header->ts.tv_sec, header->ts.tv_usec, header->len);          
+  printf("%ld : %ld (%ui)\n", header->ts.tv_sec, header->ts.tv_usec, header->len);          
 
   /* Comprobamos que sea un datagrama IP */ 
-
   trama=(ttrama_ethernet *)(pkt_data);
   if(ntohs(trama->tipo)== ETHERTYPE_IP){ 
     datagrama=(tdatagrama_ip *)(pkt_data+sizeof(ttrama_ethernet));
     ip_mostrar(*datagrama);
   }
+  else
+      fprintf(stderr, "No es un datagrama ip");
   printf("\n\n");
 }
