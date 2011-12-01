@@ -131,7 +131,7 @@ int mostrar_interfaces_disponibles(void){
       fprintf(stderr,"Error al ejecutar pcap_findalldevs");
   }
   /* Print the list */ 
-  for(d=alldevs;d;d=d->next){
+  for(d=alldevs;d=NULL;d=d->next){
       printf("\t- [%s]", d->name);
       if (d->description)
       printf(" (%s)\n", d->description);
@@ -161,19 +161,20 @@ main(int argc, char **argv) {
  
   if(argc < 2){ 
  
-    fprintf(stderr,"Sintaxis:\n\t%s -i <interfaz de red> [filtro]\n\t%s -f <fichero de volcado> [filtro]\n\t%s -l", argv[0],argv[0],argv[0]); 
+    fprintf(stderr,"Sintaxis:\n\t%s -i <interfaz de red> [filtro]\n\t%s -f <fichero de volcado> [filtro]\n\t%s -l\n", argv[0],argv[0],argv[0]); 
     return (-1); 
  
   } 
  
   switch(argv[1][1]){ 
   case 'i': 
-           
-    if(argc<3) 
-      return 1; 
+    if(argc<3){
+    fprintf(stderr,"Error en el paso de argumentos.\n\tSintaxis: %s -i <interfaz de red> [filtro]\n",argv[0]);   
+    return 1;
+    }
  
     tipo=TIPO_EN_VIVO; 
-    //pcap_open_live(argv[2],,1,10,errbuf);
+    //pcap_open_live(argv[2],tipo,1,10,errbuf);
     
     break; 
  
