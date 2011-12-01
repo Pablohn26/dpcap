@@ -131,7 +131,7 @@ int mostrar_interfaces_disponibles(void){
       fprintf(stderr,"Error al ejecutar pcap_findalldevs");
   }
   /* Print the list */ 
-  for(d=alldevs;d=NULL;d=d->next){
+  for(d=alldevs;d!=NULL;d=d->next){
       printf("\t- [%s]", d->name);
       if (d->description)
       printf(" (%s)\n", d->description);
@@ -171,10 +171,16 @@ main(int argc, char **argv) {
     fprintf(stderr,"Error en el paso de argumentos.\n\tSintaxis: %s -i <interfaz de red> [filtro]\n",argv[0]);   
     return 1;
     }
+    //Compruebo que el dispositivo sea correcto
     
-    tipo=TIPO_EN_VIVO; 
-    fp=pcap_open_live(argv[2],BUFSIZ,1,0,errbuf);
-    
+    if(check_device(argv[2])!=0){
+        tipo=TIPO_EN_VIVO; 
+        fp=pcap_open_live(argv[2],BUFSIZ,1,0,errbuf);
+    }
+    else{ 
+        fprintf(stderr,"Error 4A: no existe el dispositivo %s\n",argv[2]);   
+        return 1;
+    }
     break; 
  
   case 'f':
@@ -253,4 +259,24 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   else
       fprintf(stderr, "No es un datagrama ip");
   printf("\n\n");
+}
+
+int check_device(const char* name){
+    pcap_if_t *alldevs;
+    pcap_if_t *d;
+    char errbuf[PCAP_ERRBUF_SIZE];
+    if (pcap_findalldevs(&alldevs, errbuf) == -1 ){
+      fprintf(stderr,"Error al ejecutar pcap_findalldevs dentro de check_device\n");
+    }
+ 
+    for(d=alldevs;d!=NULL;d=d->next){
+        if(strcmp(name,d->name)==0){
+            return 1;
+        }
+    }
+    return 0;
+    
+    
+
+
 }
