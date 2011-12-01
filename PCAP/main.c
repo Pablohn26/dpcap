@@ -118,7 +118,10 @@ ip_mostrar(tdatagrama_ip datagrama) {
  
  
 void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);
- 
+ /*cabeceras
+  * recoger_datos_estadisticos->dentro del dispatcher_handler
+  * mostrar_datos_estadisticos->cada vez que se sale del pcap_loop
+  */
 int mostrar_interfaces_disponibles(void){ 
   int n_interfaces=0;
   pcap_if_t *alldevs;
@@ -165,8 +168,8 @@ main(int argc, char **argv) {
  
   } 
  
-  switch(argv[1][1]){ 
-  case 'i': 
+  switch(argv[1]){ 
+  case '-i': 
     if(argc<3){
     fprintf(stderr,"Error en el paso de argumentos.\n\tSintaxis: %s -i <interfaz de red> [filtro]\n",argv[0]);   
     return 1;
@@ -183,7 +186,7 @@ main(int argc, char **argv) {
     }
     break; 
  
-  case 'f':
+  case '-f':
  
     if(argc<3) 
       return 1; 
@@ -198,10 +201,23 @@ main(int argc, char **argv) {
  
     break; 
  
-  case 'l': 
+  case '-l': 
         
     return mostrar_interfaces_disponibles(); 
-    break; 
+    break;
+    
+  case '-is':
+      while(1){
+          pcap_loop();//desde interfaz, cnt = 100
+          //mostrar_datos_estadisticos
+      }
+      break;
+ case '-fs':
+      while(1){
+          pcap_loop();//con fichero, cnt = 0
+          //mostrar datos estadisticos
+      }
+      break;
  
   default: 
     fprintf(stderr,"Error: opción -%c no válida.\n",argv[1][1]); 
@@ -275,8 +291,6 @@ int check_device(const char* name){
         }
     }
     return 0;
-    
-    
-
-
+   
 }
+
