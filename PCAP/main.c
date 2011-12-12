@@ -119,6 +119,7 @@ ip_mostrar(tdatagrama_ip datagrama) {
 typedef struct{
     int tcp;
     int icmp;
+    int udp;
 } estadisticas;
 estadisticas e;
 void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);
@@ -169,7 +170,7 @@ main(int argc, char **argv) {
   int tipo=-1;
   if(argc < 2){ 
  
-    fprintf(stderr,"Sintaxis:\n\t%s -i <interfaz de red> [filtro]\n\t%s -f <fichero de volcado> [filtro]\n\t%s -l\n", argv[0],argv[0],argv[0]); 
+    fprintf(stderr,"Sintaxis:\n\t%s -i <interfaz de red> [filtro]\n\t%s -f <fichero de volcado> [filtro]\n\t%s -l\n\t%s -si <interfaz de red> [filtro]\n\t%s -sf <fichero de entrada> [filtro]\n", argv[0],argv[0],argv[0],argv[0],argv[0]); 
     return (-1); 
  
   } 
@@ -217,17 +218,17 @@ main(int argc, char **argv) {
           case 'f':
                 fp = pcap_open_offline(argv[2],errbuf);
                 if (fp == NULL){
-                        fprintf(stderr,"Error al abrir el fichero");
+                        fprintf(stderr,"Error al abrir el fichero\n");
                 }
                 if (pcap_loop(fp, 0, dispatcher_handler, NULL) == -1 ){//con fichero, cnt = 0
-                    fprintf(stderr, "Error al capturar paquetes");
+                    fprintf(stderr, "Error al capturar paquetes\n");
                     mostrar_datos_estadisticos();
                 }
           break;
           case 'i':
               while(1){
-                //pcap_loop();//desde interfaz, cnt = 100
-                //mostrar_datos_estadisticos
+                pcap_loop(fp,100,dispatcher_handler, NULL);//desde interfaz, cnt = 100
+                mostrar_datos_estadisticos();
             }
           break;
       }
@@ -304,6 +305,7 @@ int check_device(const char* name){
         }
     }
     return 0;
+
    
 }
 
@@ -315,6 +317,9 @@ void recoger_datos_estadisticos(unsigned char prt){
         case 'i':
             e.icmp++;
         break;
+        case 'u':
+            e.udp++;
+        break;
     }
 }
 
@@ -322,4 +327,5 @@ void recoger_datos_estadisticos(unsigned char prt){
 void mostrar_datos_estadisticos(){
     printf("%d\n",e.icmp);
     printf("%d\n",e.tcp);
+    printf("%d\n",e.udp);
 }
