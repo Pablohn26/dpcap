@@ -28,7 +28,6 @@ cabeceras IP.
  
 #define TIPO_EN_VIVO 1 
 #define TIPO_EN_FICHERO 2 
-
 typedef struct { 
   unsigned char byte1; 
   unsigned char byte2; 
@@ -122,7 +121,7 @@ typedef struct{
     int udp;
 } estadisticas;
 estadisticas e;
-void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);
+void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);//He añadido a la cabecera 
 void recoger_datos_estadisticos(unsigned char prt);
 void mostrar_datos_estadisticos();
  /*cabeceras
@@ -284,11 +283,13 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   if(ntohs(trama->tipo)== ETHERTYPE_IP){ 
     datagrama=(tdatagrama_ip *)(pkt_data+sizeof(ttrama_ethernet));
     ip_mostrar(*datagrama);
+    recoger_datos_estadisticos(datagrama->protocolo);
   }
-  else
+  else{
       fprintf(stderr, "No es un datagrama ip");
+  }
   printf("\n\n");
-  recoger_datos_estadisticos(datagrama->protocolo);
+  
 }
 
 int check_device(const char* name){
@@ -322,7 +323,6 @@ void recoger_datos_estadisticos(unsigned char prt){
         break;
     }
 }
-
 
 void mostrar_datos_estadisticos(){
     printf("%d\n",e.icmp);
