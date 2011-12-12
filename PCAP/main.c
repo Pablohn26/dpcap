@@ -116,8 +116,14 @@ ip_mostrar(tdatagrama_ip datagrama) {
   return 0;
 } 
  
- 
+typedef struct{
+    int tcp;
+    int icmp;
+} estadisticas;
+estadisticas e;
 void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);
+void recoger_datos_estadisticos(unsigned char prt);
+void mostrar_datos_estadisticos();
  /*cabeceras
   * recoger_datos_estadisticos->dentro del dispatcher_handler
   * mostrar_datos_estadisticos->cada vez que se sale del pcap_loop
@@ -155,7 +161,7 @@ int mostrar_interfaces_disponibles(void){
  
  
 main(int argc, char **argv) { 
- 
+  estadisticas e;
   struct bpf_program filtro; 
   bpf_u_int32 mascara_red, direccion_red; 
   pcap_t *fp; 
@@ -168,8 +174,8 @@ main(int argc, char **argv) {
  
   } 
  
-  switch(argv[1]){ 
-  case '-i': 
+  switch(argv[1][1]){ 
+  case 'i': 
     if(argc<3){
     fprintf(stderr,"Error en el paso de argumentos.\n\tSintaxis: %s -i <interfaz de red> [filtro]\n",argv[0]);   
     return 1;
@@ -186,7 +192,7 @@ main(int argc, char **argv) {
     }
     break; 
  
-  case '-f':
+  case 'f':
  
     if(argc<3) 
       return 1; 
@@ -201,24 +207,30 @@ main(int argc, char **argv) {
  
     break; 
  
-  case '-l': 
+  case 'l': 
         
     return mostrar_interfaces_disponibles(); 
     break;
     
-  case '-is':
-      while(1){
-          pcap_loop();//desde interfaz, cnt = 100
-          //mostrar_datos_estadisticos
+  case 's':
+      switch(argv[1][2]){
+          case 'f':
+                fp = pcap_open_offline(argv[2],errbuf);
+                if (fp == NULL){
+                        fprintf(stderr,"Error al abrir el fichero");
+                }
+                if (pcap_loop(fp, 0, dispatcher_handler, NULL) == -1 ){//con fichero, cnt = 0
+                    fprintf(stderr, "Error al capturar paquetes");
+                    mostrar_datos_estadisticos();
+                }
+          break;
+          case 'i':
+              while(1){
+                //pcap_loop();//desde interfaz, cnt = 100
+                //mostrar_datos_estadisticos
+            }
+          break;
       }
-      break;
- case '-fs':
-      while(1){
-          pcap_loop();//con fichero, cnt = 0
-          //mostrar datos estadisticos
-      }
-      break;
- 
   default: 
     fprintf(stderr,"Error: opción -%c no válida.\n",argv[1][1]); 
     return 1; 
@@ -275,6 +287,7 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   else
       fprintf(stderr, "No es un datagrama ip");
   printf("\n\n");
+  recoger_datos_estadisticos(datagrama->protocolo);
 }
 
 int check_device(const char* name){
@@ -294,3 +307,19 @@ int check_device(const char* name){
    
 }
 
+void recoger_datos_estadisticos(unsigned char prt){
+    switch (prt){
+        case 't':
+            e.tcp++;
+        break;
+        case 'i':
+            e.icmp++;
+        break;
+    }
+}
+
+
+void mostrar_datos_estadisticos(){
+    printf("%d\n",e.icmp);
+    printf("%d\n",e.tcp);
+}
