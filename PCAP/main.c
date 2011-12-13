@@ -36,6 +36,37 @@ typedef struct {
   unsigned char byte4;  
 } tdireccion_ip; 
 
+typedef struct {
+    unsigned char tipo;
+    unsigned char codigo;
+    unsigned short checksum;
+    unsigned short identificador;
+    unsigned short codigo;
+    unsigned char* datos;
+} tdatagrama_udp;
+
+typedef struct {
+    unsigned short sourceport;
+    unsigned short destport;
+    int numsecuencia;
+    int ack;
+    int offset_y_flags;
+    unsigned short checksum;
+    unsigned short pointer;
+    int options_y_padding;
+    unsigned char* datos;
+    
+} tdatagrama_tcp;
+
+typedef struct{
+    unsigned char tipo;
+    unsigned char codigo;
+    unsigned short checksum;
+    unsigned short identificador;
+    unsigned short num_secuencia;
+    unsigned char* datos;
+} tdatagrama_icmp;
+
 typedef struct { 
   unsigned char version_longcabecera; /* 4 bits versio'n, 4 bits longitud de cabecera */ 
   unsigned char tos; /* Tipo de servicio */ 
@@ -57,6 +88,10 @@ typedef struct{
   unsigned short tipo;//2 B
 } ttrama_ethernet; 
 
+void interpretar_cabeceras(const struct pcap_pkthdr *dat){
+    
+    
+}
 ip_mostrar(tdatagrama_ip datagrama) { 
   int i;
   char buffer[256];
@@ -120,11 +155,18 @@ typedef struct{
     int tcp;
     int icmp;
     int udp;
+    int telnet;
+    int ip;
+    int ftp;
+    int desconocidos;
 } estadisticas;
 estadisticas e;
 void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);//He añadido a la cabecera 
-void recoger_datos_estadisticos(struct protoent *es_protocolo);
+void recoger_datos_estadisticos(struct protoent*);
 void mostrar_datos_estadisticos();
+void tcp_mostrar();
+void udp_mostrar();
+void icmp_mostrar();
  /*cabeceras
   * recoger_datos_estadisticos->dentro del dispatcher_handler
   * mostrar_datos_estadisticos->cada vez que se sale del pcap_loop
@@ -220,10 +262,10 @@ main(int argc, char **argv) {
                 if (fp == NULL){
                         fprintf(stderr,"Error al abrir el fichero\n");
                 }
-                if (pcap_loop(fp, 0, dispatcher_handler, NULL) == -1 ){//con fichero, cnt = 0
+                if (pcap_loop(fp, 0, dispatcher_handler, NULL) == -1 )//con fichero, cnt = 0
                     fprintf(stderr, "Error al capturar paquetes\n");
-                    //mostrar_datos_estadisticos();
-                }
+                mostrar_datos_estadisticos();
+                return 1;
           break;
           case 'i':
               if(argc<3){
@@ -244,9 +286,12 @@ main(int argc, char **argv) {
                 pcap_loop(fp,20,dispatcher_handler, NULL);//desde interfaz, cnt = 100, pero pongo 20 porque si no nos morimos esperando
                 mostrar_datos_estadisticos();
                 sleep(5);
-                
             }
           break;
+          default: 
+            fprintf(stderr,"Error: opción -%c no válida.\n",argv[1][2]); 
+            return 1; 
+          break; 
       }
   default: 
     fprintf(stderr,"Error: opción -%c no válida.\n",argv[1][1]); 
@@ -291,6 +336,9 @@ main(int argc, char **argv) {
 void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u_char *pkt_data){
   u_int i=0;
   tdatagrama_ip *datagrama;
+  tdatagrama_tcp *datagrama_tcp;
+  tdatagrama_udp *datagrama_udp;
+  tdatagrama_icmp *datagrama_icmp;
   ttrama_ethernet *trama;
   /* print pkt timestamp and pkt len */ 
   printf("%ld : %ld (%ui)\n", header->ts.tv_sec, header->ts.tv_usec, header->len);          
@@ -300,20 +348,13 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   if(ntohs(trama->tipo)== ETHERTYPE_IP){ 
     datagrama=(tdatagrama_ip *)(pkt_data+sizeof(ttrama_ethernet));
     ip_mostrar(*datagrama);
-    
-    //La movida está aquí. Yo le digo que si es una estructura, él me dice que no, yo le digo que sí y me sigue diciendo que no.
-    //La idea en vez de trabajar con el char del protocolo, como no se puede (ya que por ejemplo lo que le pasábamos no contenía tcp, o upd)
-    //pues trabajamos con la estructura que contiene todos los datos del protocolo. Abajo he puesto lo de las estadisticas para ver si funciona
-    //al menos el tema de las llamadas y en ese aspecto todo correcto. Me piro a la cama que estoy muerto. 
-    //Todavía no hemos pasado del 2 :'( 
-    
-    struct protoent *es_protocolo;
-    es_protocolo=getprotobynumber(datagrama.protocolo);
-    recoger_datos_estadisticos(datagrama->protocolo);
+    recoger_datos_estadisticos(getprotobynumber(datagrama->protocolo));
   }
   else{
       fprintf(stderr, "No es un datagrama ip");
   }
+  //interpretar_cabeceras(*header);
+
 }
 
 int check_device(const char* name){
@@ -330,36 +371,33 @@ int check_device(const char* name){
         }
     }
     return 0;
-
-   
 }
 
-void recoger_datos_estadisticos(struct protoent *es_protocolo){
-   /* if(strcmp(prt,"t")==0){
-        e.tcp++;
-    }else if(strcmp(prt,"i")==0){
+void recoger_datos_estadisticos(struct protoent* prt){
+    if(prt->p_proto==1){
         e.icmp++;
-    }
-    else if(strcmp(prt,"u")==0){
-        e.udp++; 
-    }
-     else printf("Protocolo desconocico\n"); 
-     */
+    }else if(prt->p_proto==6){
+        e.tcp++; 
+    }else if(prt->p_proto==17){
+        e.udp++;
+    }else if(strcmp(prt->p_name, "telnet")){
+        e.telnet++;
+    }else if(strcmp(prt->p_name, "ftp")){
+        e.ftp++;
+    }else printf("Protocolo desconocido");
+     
     
-    e.tcp++;
 }
 
 void mostrar_datos_estadisticos(){
-    int i=0;
-    for (i=0;i<6;i++){
-    printf("///////////////////////////////////////////////////////////////////////////////////////////////////////");
-    }
-    //printf("%d\n",e.icmp);
-    printf("%d\n",e.tcp);
-    //printf("%d\n",e.udp);
-    
-    for (i=0;i<6;i++){
-    printf("///////////////////////////////////////////////////////////////////////////////////////////////////////");
-
-    }
+    printf("\n \n \n");
+    int total = e.icmp + e.tcp + e.udp + e.desconocidos;
+    printf("Numero total de paquetes: %d\n",total);
+    printf("ICMP: %d\n",e.icmp);
+    printf("TCP: %d\n",e.tcp);
+    printf("UDP: %d\n",e.udp);
+    printf("TELNET: %d\n",e.telnet);
+    printf("IP: %d\n",e.ip);
+    printf("FTP: %d\n",e.ftp);
+    printf("DESCONOCIDOS: %d\n",e.desconocidos);
 }
