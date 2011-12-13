@@ -21,6 +21,7 @@ cabeceras IP.
 #include <string.h> 
 #include <netinet/in.h> 
 #include <netdb.h> 
+#include <unistd.h>//Para el sleep
 
 #define ETHERTYPE_IP 0x0800 
  
@@ -221,13 +222,29 @@ main(int argc, char **argv) {
                 }
                 if (pcap_loop(fp, 0, dispatcher_handler, NULL) == -1 ){//con fichero, cnt = 0
                     fprintf(stderr, "Error al capturar paquetes\n");
-                    mostrar_datos_estadisticos();
+                    //mostrar_datos_estadisticos();
                 }
           break;
           case 'i':
-              while(1){
-                pcap_loop(fp,100,dispatcher_handler, NULL);//desde interfaz, cnt = 100
+              if(argc<3){
+                fprintf(stderr,"Error en el paso de argumentos.\n\tSintaxis: %s -si <interfaz de red> [filtro]\n",argv[0]);   
+                return 1;
+              }
+              //Compruebo que el dispositivo sea correcto
+   
+            if(check_device(argv[2])!=0){
+                tipo=TIPO_EN_VIVO; 
+                fp=pcap_open_live(argv[2],BUFSIZ,1,0,errbuf);
+            }
+            else{ 
+                fprintf(stderr,"Error 4A: no existe el dispositivo %s\n",argv[2]);   
+                return 1;
+            }
+            while(1){
+                pcap_loop(fp,20,dispatcher_handler, NULL);//desde interfaz, cnt = 100, pero pongo 20 porque si no nos morimos esperando
                 mostrar_datos_estadisticos();
+                sleep(5);
+                
             }
           break;
       }
@@ -288,8 +305,6 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   else{
       fprintf(stderr, "No es un datagrama ip");
   }
-  printf("\n\n");
-  
 }
 
 int check_device(const char* name){
@@ -325,7 +340,9 @@ void recoger_datos_estadisticos(unsigned char prt){
 }
 
 void mostrar_datos_estadisticos(){
+    printf("///////////////////////////////////////////////////////////////////////////////////////////////////////");
     printf("%d\n",e.icmp);
     printf("%d\n",e.tcp);
     printf("%d\n",e.udp);
+    printf("///////////////////////////////////////////////////////////////////////////////////////////////////////");
 }
