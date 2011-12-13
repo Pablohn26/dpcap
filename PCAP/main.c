@@ -123,7 +123,7 @@ typedef struct{
 } estadisticas;
 estadisticas e;
 void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);//He añadido a la cabecera 
-void recoger_datos_estadisticos(const char *prt);
+void recoger_datos_estadisticos(struct protoent *es_protocolo);
 void mostrar_datos_estadisticos();
  /*cabeceras
   * recoger_datos_estadisticos->dentro del dispatcher_handler
@@ -300,7 +300,16 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   if(ntohs(trama->tipo)== ETHERTYPE_IP){ 
     datagrama=(tdatagrama_ip *)(pkt_data+sizeof(ttrama_ethernet));
     ip_mostrar(*datagrama);
-    recoger_datos_estadisticos((const char *)datagrama->protocolo);
+    
+    //La movida está aquí. Yo le digo que si es una estructura, él me dice que no, yo le digo que sí y me sigue diciendo que no.
+    //La idea en vez de trabajar con el char del protocolo, como no se puede (ya que por ejemplo lo que le pasábamos no contenía tcp, o upd)
+    //pues trabajamos con la estructura que contiene todos los datos del protocolo. Abajo he puesto lo de las estadisticas para ver si funciona
+    //al menos el tema de las llamadas y en ese aspecto todo correcto. Me piro a la cama que estoy muerto. 
+    //Todavía no hemos pasado del 2 :'( 
+    
+    struct protoent *es_protocolo;
+    es_protocolo=getprotobynumber(datagrama.protocolo);
+    recoger_datos_estadisticos(datagrama->protocolo);
   }
   else{
       fprintf(stderr, "No es un datagrama ip");
@@ -325,7 +334,7 @@ int check_device(const char* name){
    
 }
 
-void recoger_datos_estadisticos(const char* prt){
+void recoger_datos_estadisticos(struct protoent *es_protocolo){
    /* if(strcmp(prt,"t")==0){
         e.tcp++;
     }else if(strcmp(prt,"i")==0){
