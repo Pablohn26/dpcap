@@ -123,7 +123,7 @@ typedef struct{
 } estadisticas;
 estadisticas e;
 void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);//He añadido a la cabecera 
-void recoger_datos_estadisticos(unsigned char prt);
+void recoger_datos_estadisticos(const char *prt);
 void mostrar_datos_estadisticos();
  /*cabeceras
   * recoger_datos_estadisticos->dentro del dispatcher_handler
@@ -300,7 +300,7 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   if(ntohs(trama->tipo)== ETHERTYPE_IP){ 
     datagrama=(tdatagrama_ip *)(pkt_data+sizeof(ttrama_ethernet));
     ip_mostrar(*datagrama);
-    recoger_datos_estadisticos(datagrama->protocolo);
+    recoger_datos_estadisticos((const char *)datagrama->protocolo);
   }
   else{
       fprintf(stderr, "No es un datagrama ip");
@@ -325,18 +325,17 @@ int check_device(const char* name){
    
 }
 
-void recoger_datos_estadisticos(unsigned char prt){
-    switch (prt){
-        case 't':
-            e.tcp++;
-        break;
-        case 'i':
-            e.icmp++;
-        break;
-        case 'u':
-            e.udp++;
-        break;
+void recoger_datos_estadisticos(const char* prt){
+    if(strcmp(prt,"t")==0){
+        e.tcp++;
+    }else if(strcmp(prt,"i")==0){
+        e.icmp++;
     }
+    else if(strcmp(prt,"u")==0){
+        e.udp++; 
+    }
+     else printf("Protocolo desconocico\n"); 
+     
 }
 
 void mostrar_datos_estadisticos(){
