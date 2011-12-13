@@ -326,7 +326,7 @@ int check_device(const char* name){
 }
 
 void recoger_datos_estadisticos(const char* prt){
-    if(strcmp(prt,"t")==0){
+   /* if(strcmp(prt,"t")==0){
         e.tcp++;
     }else if(strcmp(prt,"i")==0){
         e.icmp++;
@@ -335,13 +335,22 @@ void recoger_datos_estadisticos(const char* prt){
         e.udp++; 
     }
      else printf("Protocolo desconocico\n"); 
-     
+     */
+    
+    e.tcp++;
 }
 
 void mostrar_datos_estadisticos(){
+    int i=0;
+    for (i=0;i<6;i++){
     printf("///////////////////////////////////////////////////////////////////////////////////////////////////////");
-    printf("%d\n",e.icmp);
+    }
+    //printf("%d\n",e.icmp);
     printf("%d\n",e.tcp);
-    printf("%d\n",e.udp);
+    //printf("%d\n",e.udp);
+    
+    for (i=0;i<6;i++){
     printf("///////////////////////////////////////////////////////////////////////////////////////////////////////");
+
+    }
 }
