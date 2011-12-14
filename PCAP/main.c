@@ -279,7 +279,7 @@ main(int argc, char **argv) {
                 return 1;
             }
             while(1){
-                pcap_loop(fp,500,dispatcher_handler, NULL);//desde interfaz, cnt = 100, pero pongo 20 porque si no nos morimos esperando
+                pcap_loop(fp,20,dispatcher_handler, NULL);//desde interfaz, cnt = 100, pero pongo 20 porque si no nos morimos esperando
                 mostrar_datos_estadisticos();
                 sleep(5);
             }
@@ -341,23 +341,23 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
     datagrama=(tdatagrama_ip *)(pkt_data+sizeof(ttrama_ethernet));
     ip_mostrar(*datagrama);
     longitud = 4*(datagrama->version_longcabecera & 0x0F);
-    if (strcmp((getprotobynumber(datagrama->protocolo)->p_name),"tcp")){
+    if (strcmp((getprotobynumber(datagrama->protocolo)->p_name),"tcp")==0){
         datagrama_tcp = (tdatagrama_tcp *) (pkt_data+sizeof(ttrama_ethernet)+longitud);
-        if (datagrama_tcp->sourceport == 23){//telnet
+        if (datagrama_tcp->destport == 23){//telnet
             recoger_datos_estadisticos("telnet");
         }
-        else if(datagrama_tcp->sourceport == 21){//ftp
+        else if(datagrama_tcp->destport == 21){//ftp
             recoger_datos_estadisticos("ftp");
         }
         recoger_datos_estadisticos("tcp");
         tcp_mostrar(datagrama_tcp);
     }
-    else if(strcmp(getprotobynumber(datagrama->protocolo)->p_name,"udp")){
+    else if(strcmp(getprotobynumber(datagrama->protocolo)->p_name,"udp")==0){
         datagrama_udp = (tdatagrama_udp *) (pkt_data + sizeof(ttrama_ethernet)+longitud);
         recoger_datos_estadisticos("udp");
         udp_mostrar(datagrama_udp);
     }
-    else if(strcmp(getprotobynumber(datagrama->protocolo)->p_name,"icmp")){
+    else if(strcmp(getprotobynumber(datagrama->protocolo)->p_name,"icmp")==0){
         datagrama_icmp = (tdatagrama_icmp *) ( pkt_data + sizeof(ttrama_ethernet)+longitud);
         recoger_datos_estadisticos("icmp");
         icmp_mostrar(datagrama_icmp);
@@ -401,7 +401,7 @@ void recoger_datos_estadisticos(const char* c){
 
 void mostrar_datos_estadisticos(){
     printf("\n \n \n");
-    int total = e.icmp + e.udp + e.telnet +e.desconocidos;
+    int total = e.icmp + e.udp + e.tcp +e.desconocidos;
     printf("Numero total de paquetes: %d\n",total);
     printf("ICMP: %d\n",e.icmp);
     printf("UDP: %d\n",e.udp);
