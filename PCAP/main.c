@@ -434,10 +434,10 @@ void tcp_mostrar(tdatagrama_tcp* datagrama){
     printf("Puerto Destino: %u\n",datagrama->destport);
     printf("Numero de secuencia: %d\n",datagrama->numsecuencia);
     printf("Numero de confirmacion: %d\n",datagrama->ack);
-    printf("Desplazamiento: %d\n",(datagrama->offset_y_flags & 0xF000));
+    printf("Desplazamiento: %d\n",(datagrama->offset_y_flags & 0xF000)>>12);
     printf("Flags: %d\n",datagrama->offset_y_flags & 0x0FFF);
     printf("Suma de control: %u\n",datagrama->checksum);
     printf("Puntero urgente: %u\n",datagrama->pointer);
-    printf("Opciones: %d\n",datagrama->options_y_padding & 0xFFF0);
+    printf("Opciones: %d\n",(datagrama->options_y_padding & 0xFFF0)>>4);
     printf("Padding: %d\n",datagrama->options_y_padding & 0x000F);
 }
