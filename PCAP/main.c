@@ -37,11 +37,10 @@ typedef struct {
 } tdireccion_ip; 
 
 typedef struct {
-    unsigned char tipo;
-    unsigned char codigo;
+   unsigned short sourceport;
+    unsigned short destport;
+    unsigned short longitud;
     unsigned short checksum;
-    unsigned short identificador;
-    unsigned short codigo;
     unsigned char* datos;
 } tdatagrama_udp;
 
@@ -152,21 +151,19 @@ ip_mostrar(tdatagrama_ip datagrama) {
 } 
  
 typedef struct{
-    int tcp;
     int icmp;
     int udp;
     int telnet;
-    int ip;
     int ftp;
     int desconocidos;
 } estadisticas;
 estadisticas e;
 void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);//He añadido a la cabecera 
-void recoger_datos_estadisticos(struct protoent*);
+void recoger_datos_estadisticos(const char*);
 void mostrar_datos_estadisticos();
-void tcp_mostrar();
-void udp_mostrar();
-void icmp_mostrar();
+void tcp_mostrar(tdatagrama_tcp* datagrama);
+void udp_mostrar(tdatagrama_udp* datagrama);
+void icmp_mostrar(tdatagrama_icmp* datagrama);
  /*cabeceras
   * recoger_datos_estadisticos->dentro del dispatcher_handler
   * mostrar_datos_estadisticos->cada vez que se sale del pcap_loop
@@ -340,6 +337,7 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   tdatagrama_udp *datagrama_udp;
   tdatagrama_icmp *datagrama_icmp;
   ttrama_ethernet *trama;
+  unsigned char longitud;
   /* print pkt timestamp and pkt len */ 
   printf("%ld : %ld (%ui)\n", header->ts.tv_sec, header->ts.tv_usec, header->len);          
 
@@ -347,8 +345,28 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   trama=(ttrama_ethernet *)(pkt_data);
   if(ntohs(trama->tipo)== ETHERTYPE_IP){ 
     datagrama=(tdatagrama_ip *)(pkt_data+sizeof(ttrama_ethernet));
-    ip_mostrar(*datagrama);
-    recoger_datos_estadisticos(getprotobynumber(datagrama->protocolo));
+    //ip_mostrar(*datagrama);
+    longitud = 4 * (datagrama->version_longcabecera & 0x0F);
+    if (strcmp((getprotobynumber(datagrama->protocolo)->p_name),"tcp")){
+        datagrama_tcp = (tdatagrama_tcp *) (pkt_data+sizeof(ttrama_ethernet)+longitud);
+        if (datagrama_tcp->sourceport == 23){//telnet
+            recoger_datos_estadisticos("telnet");
+        }
+        else if(datagrama_tcp->sourceport == 21){//ftp
+            recoger_datos_estadisticos("ftp");
+        }
+        tcp_mostrar(datagrama_tcp);
+    }
+    else if(strcmp(getprotobynumber(datagrama->protocolo)->p_name,"udp")){
+        datagrama_udp = (tdatagrama_udp *) (pkt_data + sizeof(ttrama_ethernet)+longitud);
+        recoger_datos_estadisticos("udp");
+        udp_mostrar(datagrama_udp);
+    }
+    else if(strcmp(getprotobynumber(datagrama->protocolo)->p_name,"icmp")){
+        datagrama_icmp = (tdatagrama_icmp *) ( pkt_data + sizeof(ttrama_ethernet)+longitud);
+        recoger_datos_estadisticos("icmp");
+        icmp_mostrar(datagrama_icmp);
+    }
   }
   else{
       fprintf(stderr, "No es un datagrama ip");
@@ -373,16 +391,14 @@ int check_device(const char* name){
     return 0;
 }
 
-void recoger_datos_estadisticos(struct protoent* prt){
-    if(prt->p_proto==1){
+void recoger_datos_estadisticos(const char* c){
+    if(strcmp(c,"icmp") == 0){
         e.icmp++;
-    }else if(prt->p_proto==6){
-        e.tcp++; 
-    }else if(prt->p_proto==17){
+    }else if(strcmp(c,"telnet") == 0){
+        e.telnet; 
+    }else if(strcmp(c,"udp") == 0){
         e.udp++;
-    }else if(strcmp(prt->p_name, "telnet")){
-        e.telnet++;
-    }else if(strcmp(prt->p_name, "ftp")){
+    }else if(strcmp(c,"ftp") == 0){
         e.ftp++;
     }else printf("Protocolo desconocido");
      
@@ -391,13 +407,41 @@ void recoger_datos_estadisticos(struct protoent* prt){
 
 void mostrar_datos_estadisticos(){
     printf("\n \n \n");
-    int total = e.icmp + e.tcp + e.udp + e.desconocidos;
+    int total = e.icmp + e.udp + e.desconocidos;
     printf("Numero total de paquetes: %d\n",total);
     printf("ICMP: %d\n",e.icmp);
-    printf("TCP: %d\n",e.tcp);
     printf("UDP: %d\n",e.udp);
     printf("TELNET: %d\n",e.telnet);
-    printf("IP: %d\n",e.ip);
     printf("FTP: %d\n",e.ftp);
     printf("DESCONOCIDOS: %d\n",e.desconocidos);
+}
+
+void udp_mostrar(tdatagrama_udp* datagrama){
+    printf("TRAMA UDP:\n");
+    printf("Puerto origen : %u\n",datagrama->sourceport);
+    printf("Puerto Destino: %u\n",datagrama->destport);
+    printf ("Longitud: %u\n",datagrama->longitud);
+    printf ("Suma de control: %u\n",datagrama->checksum);
+}
+void icmp_mostrar(tdatagrama_icmp* datagrama){
+    printf("TRAMA ICMP:\n");
+    printf("Tipo: %u\n",datagrama->tipo);
+    printf("Codigo: %u\n",datagrama->codigo);
+    printf("Suma de control: %u\n",datagrama->checksum);
+    printf("Identificador: %u\n", datagrama->identificador);
+    printf("Numero de Secuencia: %u\n",datagrama->num_secuencia);
+}
+
+void tcp_mostrar(tdatagrama_tcp* datagrama){
+    printf("TRAMA TCP:\n");
+    printf("Puerto origen : %u\n",datagrama->sourceport);
+    printf("Puerto Destino: %u\n",datagrama->destport);
+    printf("Numero de secuencia: %d\n",datagrama->numsecuencia);
+    printf("Numero de confirmacion: %d\n",datagrama->ack);
+    printf("Desplazamiento: %d\n",(datagrama->offset_y_flags & 0xF000));
+    printf("Flags: %d\n",datagrama->offset_y_flags & 0x0FFF);
+    printf("Suma de control: %u\n",datagrama->checksum);
+    printf("Puntero urgente: %u\n",datagrama->pointer);
+    printf("Opciones: %d\n",datagrama->options_y_padding & 0xFFF0);
+    printf("Padding: %d\n",datagrama->options_y_padding & 0x000F);
 }
