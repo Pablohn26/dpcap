@@ -255,10 +255,13 @@ main(int argc, char **argv) {
                 if (fp == NULL){
                         fprintf(stderr,"Error al abrir el fichero\n");
                 }
-                if (pcap_loop(fp, 0, dispatcher_handler, NULL) == -1 )//con fichero, cnt = 0
+                if (pcap_loop(fp, 0, dispatcher_handler, NULL) == -1 ){//con fichero, cnt = 0
                     fprintf(stderr, "Error al capturar paquetes\n");
+                    return 1;
+                }else {
                 mostrar_datos_estadisticos();
-                return 1;
+                return 0;
+                }                
           break;
           case 'i':
               if(argc<3){
@@ -401,7 +404,7 @@ void recoger_datos_estadisticos(const char* c){
 
 void mostrar_datos_estadisticos(){
     printf("\n \n \n");
-    int total = e.icmp + e.udp + e.desconocidos + e.tcp;
+    int total = e.icmp + e.udp + e.telnet +e.desconocidos;
     printf("Numero total de paquetes: %d\n",total);
     printf("ICMP: %d\n",e.icmp);
     printf("UDP: %d\n",e.udp);
