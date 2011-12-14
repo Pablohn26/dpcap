@@ -112,8 +112,8 @@ ip_mostrar(tdatagrama_ip datagrama) {
  
   es_protocolo=getprotobynumber(datagrama.protocolo);
  
-  if(es_protocolo!=0){ 
-    sprintf(buffer,"%s",es_protocolo->p_name); 
+  if(es_protocolo!=0){
+    sprintf(buffer,"%s",es_protocolo->p_name);
   } else { 
     sprintf(buffer,"0x%x",datagrama.protocolo); 
   } 
@@ -333,15 +333,14 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   tdatagrama_icmp *datagrama_icmp;
   ttrama_ethernet *trama;
   unsigned char longitud;
-  /* print pkt timestamp and pkt len */ 
+  /* print pkt timestamp and pkt len */
   printf("%ld : %ld (%ui)\n", header->ts.tv_sec, header->ts.tv_usec, header->len);          
-
-  /* Comprobamos que sea un datagrama IP */ 
+  /* Comprobamos que sea un datagrama IP */
   trama=(ttrama_ethernet *)(pkt_data);
   if(ntohs(trama->tipo)== ETHERTYPE_IP){ 
     datagrama=(tdatagrama_ip *)(pkt_data+sizeof(ttrama_ethernet));
-    //ip_mostrar(*datagrama);
-    longitud = 4 * (datagrama->version_longcabecera & 0x0F);
+    ip_mostrar(*datagrama);
+    longitud = 4*(datagrama->version_longcabecera & 0x0F);
     if (strcmp((getprotobynumber(datagrama->protocolo)->p_name),"tcp")){
         datagrama_tcp = (tdatagrama_tcp *) (pkt_data+sizeof(ttrama_ethernet)+longitud);
         if (datagrama_tcp->sourceport == 23){//telnet
@@ -398,8 +397,6 @@ void recoger_datos_estadisticos(const char* c){
     }else if(strcmp(c,"tcp")==0){
         e.tcp++;
     }else printf("Protocolo desconocido");
-     
-    
 }
 
 void mostrar_datos_estadisticos(){
@@ -418,9 +415,10 @@ void udp_mostrar(tdatagrama_udp* datagrama){
     printf("TRAMA UDP:\n");
     printf("Puerto origen : %u\n",datagrama->sourceport);
     printf("Puerto Destino: %u\n",datagrama->destport);
-    printf ("Longitud: %u\n",datagrama->longitud);
-    printf ("Suma de control: %u\n",datagrama->checksum);
+    printf("Longitud: %u\n",datagrama->longitud);
+    printf("Suma de control: %u\n",datagrama->checksum);
 }
+
 void icmp_mostrar(tdatagrama_icmp* datagrama){
     printf("TRAMA ICMP:\n");
     printf("Tipo: %u\n",datagrama->tipo);
