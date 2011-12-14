@@ -85,12 +85,8 @@ typedef struct{
   unsigned  char direccion_origen[6];//6 B
   unsigned char direccion_destino[6];//6 B
   unsigned short tipo;//2 B
-} ttrama_ethernet; 
+} ttrama_ethernet;     
 
-void interpretar_cabeceras(const struct pcap_pkthdr *dat){
-    
-    
-}
 ip_mostrar(tdatagrama_ip datagrama) { 
   int i;
   char buffer[256];
@@ -156,18 +152,18 @@ typedef struct{
     int telnet;
     int ftp;
     int desconocidos;
+    int tcp;
 } estadisticas;
+
 estadisticas e;
+
 void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);//He añadido a la cabecera 
 void recoger_datos_estadisticos(const char*);
 void mostrar_datos_estadisticos();
 void tcp_mostrar(tdatagrama_tcp* datagrama);
 void udp_mostrar(tdatagrama_udp* datagrama);
 void icmp_mostrar(tdatagrama_icmp* datagrama);
- /*cabeceras
-  * recoger_datos_estadisticos->dentro del dispatcher_handler
-  * mostrar_datos_estadisticos->cada vez que se sale del pcap_loop
-  */
+
 int mostrar_interfaces_disponibles(void){ 
   int n_interfaces=0;
   pcap_if_t *alldevs;
@@ -280,7 +276,7 @@ main(int argc, char **argv) {
                 return 1;
             }
             while(1){
-                pcap_loop(fp,20,dispatcher_handler, NULL);//desde interfaz, cnt = 100, pero pongo 20 porque si no nos morimos esperando
+                pcap_loop(fp,500,dispatcher_handler, NULL);//desde interfaz, cnt = 100, pero pongo 20 porque si no nos morimos esperando
                 mostrar_datos_estadisticos();
                 sleep(5);
             }
@@ -299,20 +295,17 @@ main(int argc, char **argv) {
   /* En caso de que se haya especificado un filtro: */ 
   if(argc>3){ 
     /* Obtenemos cuál es la máscara de red asociada al dispositivo abierto: */ 
-    /* ***Usar*** pcap_lookupnet */ 
         if(pcap_lookupnet(argv[2], &direccion_red, &mascara_red, errbuf) == -1){
             fprintf (stderr, "Error al asignar el filtro");
         }
 
     /* Compilamos la expresión en "filtro": */ 
-    /* ***Usar*** pcap_compile */
         if(pcap_compile(fp, &filtro, argv[3], 0, mascara_red) == -1){
             fprintf (stderr, "Error al compilar el filtro\n");
         }
      
     /* Establecemos un filtro para el tráfico: */  
  
-    /* ***USar pcap_setfilter *** */ 
         if(pcap_setfilter(fp, &filtro) == -1){
             fprintf(stderr, "Error al asignar el filtro\n");
         }
@@ -321,7 +314,6 @@ main(int argc, char **argv) {
   } 
  
   /* Lee y procesa tramas hasta que se llegue a EOF. */ 
-  /* ***Usar*** pcap_loop; */
   if (pcap_loop(fp, 0, dispatcher_handler, NULL) == -1){
       fprintf(stderr, "Error al capturar paquetes");
   }
@@ -355,6 +347,7 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
         else if(datagrama_tcp->sourceport == 21){//ftp
             recoger_datos_estadisticos("ftp");
         }
+        recoger_datos_estadisticos("tcp");
         tcp_mostrar(datagrama_tcp);
     }
     else if(strcmp(getprotobynumber(datagrama->protocolo)->p_name,"udp")){
@@ -371,7 +364,6 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   else{
       fprintf(stderr, "No es un datagrama ip");
   }
-  //interpretar_cabeceras(*header);
 
 }
 
@@ -400,6 +392,8 @@ void recoger_datos_estadisticos(const char* c){
         e.udp++;
     }else if(strcmp(c,"ftp") == 0){
         e.ftp++;
+    }else if(strcmp(c,"tcp")==0){
+        e.tcp++;
     }else printf("Protocolo desconocido");
      
     
@@ -407,12 +401,13 @@ void recoger_datos_estadisticos(const char* c){
 
 void mostrar_datos_estadisticos(){
     printf("\n \n \n");
-    int total = e.icmp + e.udp + e.desconocidos;
+    int total = e.icmp + e.udp + e.desconocidos + e.tcp;
     printf("Numero total de paquetes: %d\n",total);
     printf("ICMP: %d\n",e.icmp);
     printf("UDP: %d\n",e.udp);
     printf("TELNET: %d\n",e.telnet);
     printf("FTP: %d\n",e.ftp);
+    printf("TCP: %d\n",e.tcp);
     printf("DESCONOCIDOS: %d\n",e.desconocidos);
 }
 
