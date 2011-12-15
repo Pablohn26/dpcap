@@ -24,7 +24,8 @@ cabeceras IP.
 #include <unistd.h>//Para el sleep
 
 #define ETHERTYPE_IP 0x0800 
- 
+#define ACK 0x0010
+#define SYN 0x0002
 #define LINE_LEN 16 
  
 #define TIPO_EN_VIVO 1 
@@ -65,6 +66,12 @@ typedef struct{
     unsigned short num_secuencia;
     unsigned char* datos;
 } tdatagrama_icmp;
+
+typedef struct {
+    tdireccion_ip iporig, ipdest;
+    short int porig,pdest;
+    int paso;
+} cuadrupla;
 
 typedef struct { 
   unsigned char version_longcabecera; /* 4 bits versio'n, 4 bits longitud de cabecera */ 
@@ -194,8 +201,9 @@ int mostrar_interfaces_disponibles(void){
   pcap_freealldevs(alldevs);
   return n_interfaces;
 } 
- 
- 
+
+cuadrupla c [100];
+int i = 0;
 main(int argc, char **argv) { 
   estadisticas e;
   struct bpf_program filtro; 
@@ -342,6 +350,9 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
     ip_mostrar(*datagrama);
     longitud = 4*(datagrama->version_longcabecera & 0x0F);
     if (strcmp((getprotobynumber(datagrama->protocolo)->p_name),"tcp")==0){
+        int ack,syn;
+        ack = datagrama_tcp->offset_y_flags & ACK;
+        syn = datagrama_tcp->offset_y_flags & SYN;
         datagrama_tcp = (tdatagrama_tcp *) (pkt_data+sizeof(ttrama_ethernet)+longitud);
         datagrama_tcp->destport = ntohs(datagrama_tcp->destport);
         datagrama_tcp->sourceport = ntohs(datagrama_tcp->sourceport);
@@ -352,6 +363,17 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
             recoger_datos_estadisticos("ftp");
         }
         recoger_datos_estadisticos("tcp");
+        if (syn != 0){
+            c[i].porig = datagrama_tcp->sourceport;
+            c[i].pdest = datagrama_tcp->destport;
+            c[i].paso = 1;
+            c[i].ipdest = datagrama->dir_destino;
+            c[i].iporig = datagrama->dir_origen;            
+            i++;
+        }
+        //comprobar si es una trama de tipo 2 o tipo 3. si lo son, recorrer el struct cuadrupla
+        //comparando ip's y puertos y si coincide con alguna, aumentar paso++. al final, recorrer el struct entero y ver si
+        //algun paso es menor de 3; si lo es, será una conexión fallida.
         tcp_mostrar(datagrama_tcp);
     }
     else if(strcmp(getprotobynumber(datagrama->protocolo)->p_name,"udp")==0){
