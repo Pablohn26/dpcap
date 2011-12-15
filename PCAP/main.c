@@ -49,12 +49,12 @@ typedef struct {
     unsigned short destport;
     int numsecuencia;
     int ack;
-    int offset_y_flags;
+    unsigned short offset_y_flags;
+    unsigned short window;
     unsigned short checksum;
     unsigned short pointer;
     int options_y_padding;
-    unsigned char* datos;
-    
+    unsigned char* datos;    
 } tdatagrama_tcp;
 
 typedef struct{
@@ -209,7 +209,7 @@ main(int argc, char **argv) {
     return (-1); 
  
   } 
- 
+
   switch(argv[1][1]){ 
   case 'i': 
     if(argc<3){
@@ -306,7 +306,7 @@ main(int argc, char **argv) {
         if(pcap_compile(fp, &filtro, argv[3], 0, mascara_red) == -1){
             fprintf (stderr, "Error al compilar el filtro\n");
         }
-     
+
     /* Establecemos un filtro para el tráfico: */  
  
         if(pcap_setfilter(fp, &filtro) == -1){
@@ -343,10 +343,12 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
     longitud = 4*(datagrama->version_longcabecera & 0x0F);
     if (strcmp((getprotobynumber(datagrama->protocolo)->p_name),"tcp")==0){
         datagrama_tcp = (tdatagrama_tcp *) (pkt_data+sizeof(ttrama_ethernet)+longitud);
-        if (datagrama_tcp->destport == 23){//telnet
+        datagrama_tcp->destport = ntohs(datagrama_tcp->destport);
+        datagrama_tcp->sourceport = ntohs(datagrama_tcp->sourceport);
+        if (datagrama_tcp->destport == 23 || datagrama_tcp->sourceport == 23){//telnet
             recoger_datos_estadisticos("telnet");
         }
-        else if(datagrama_tcp->destport == 21){//ftp
+        else if(datagrama_tcp->destport == 21 || datagrama_tcp->destport == 20 || datagrama_tcp->sourceport == 21 || datagrama_tcp->sourceport == 20){//ftp
             recoger_datos_estadisticos("ftp");
         }
         recoger_datos_estadisticos("tcp");
@@ -389,7 +391,7 @@ void recoger_datos_estadisticos(const char* c){
     if(strcmp(c,"icmp") == 0){
         e.icmp++;
     }else if(strcmp(c,"telnet") == 0){
-        e.telnet; 
+        e.telnet++; 
     }else if(strcmp(c,"udp") == 0){
         e.udp++;
     }else if(strcmp(c,"ftp") == 0){
@@ -416,29 +418,31 @@ void udp_mostrar(tdatagrama_udp* datagrama){
     printf("Puerto origen : %u\n",ntohs(datagrama->sourceport));
     printf("Puerto Destino: %u\n",ntohs(datagrama->destport));
     printf("Longitud: %u\n",ntohs(datagrama->longitud));
-    printf("Suma de control: %u\n",ntohs(datagrama->checksum));
+    printf("Suma de control: 0x%x\n",ntohs(datagrama->checksum));
 }
 
 void icmp_mostrar(tdatagrama_icmp* datagrama){
     printf("TRAMA ICMP:\n");
     printf("Tipo: %u\n",datagrama->tipo);
     printf("Codigo: %u\n",datagrama->codigo);
-    printf("Suma de control: %u\n",ntohs(datagrama->checksum));
-    printf("Identificador: %u\n", ntohs(datagrama->identificador));
-    printf("Numero de Secuencia: %u\n",ntohs(datagrama->num_secuencia));
+    printf("Suma de control: 0x%x\n",ntohs(datagrama->checksum));
+    printf("Identificador: 0x%x\n", ntohs(datagrama->identificador));
+    printf("Numero de Secuencia: 0x%x\n",ntohs(datagrama->num_secuencia));
 }
 
 void tcp_mostrar(tdatagrama_tcp* datagrama){
     printf("TRAMA TCP:\n");
-    datagrama->offset_y_flags = ntohl(datagrama->offset_y_flags);
+    datagrama->offset_y_flags = ntohs(datagrama->offset_y_flags);
     datagrama->options_y_padding = ntohl(datagrama->options_y_padding);
-    printf("Puerto origen : %u\n",ntohs(datagrama->sourceport));
-    printf("Puerto Destino: %u\n",ntohs(datagrama->destport));
-    printf("Numero de secuencia: %d\n",ntohl(datagrama->numsecuencia));
-    printf("Numero de confirmacion: %d\n",ntohl(datagrama->ack));
+    printf("Puerto origen : %u\n",datagrama->sourceport);
+    printf("Puerto Destino: %u\n",datagrama->destport);
+    printf("Numero de secuencia: 0x%x\n",ntohl(datagrama->numsecuencia));
+    printf("Numero de confirmacion: 0x%x\n",ntohl(datagrama->ack));
     printf("Desplazamiento: %d\n",(datagrama->offset_y_flags & 0xF000)>>12);
-    printf("Flags: %d\n",datagrama->offset_y_flags & 0x0FFF);
-    printf("Suma de control: %u\n",ntohs(datagrama->checksum));
+    printf("Reservado: %u\n",(datagrama->offset_y_flags & 0x0FC0)>>8);
+    printf("Flags: 0x%x\n",datagrama->offset_y_flags & 0x003F);
+    printf("Ventana: 0x%x\n",ntohs(datagrama->window));
+    printf("Suma de control: 0x%x\n",ntohs(datagrama->checksum));
     printf("Puntero urgente: %u\n",ntohs(datagrama->pointer));
     printf("Opciones: %d\n",(datagrama->options_y_padding & 0xFFF0)>>4);
     printf("Padding: %d\n",datagrama->options_y_padding & 0x000F);
