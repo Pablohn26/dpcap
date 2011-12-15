@@ -37,7 +37,7 @@ typedef struct {
 } tdireccion_ip; 
 
 typedef struct {
-   unsigned short sourceport;
+    unsigned short sourceport;
     unsigned short destport;
     unsigned short longitud;
     unsigned short checksum;
@@ -413,31 +413,33 @@ void mostrar_datos_estadisticos(){
 
 void udp_mostrar(tdatagrama_udp* datagrama){
     printf("TRAMA UDP:\n");
-    printf("Puerto origen : %u\n",datagrama->sourceport);
-    printf("Puerto Destino: %u\n",datagrama->destport);
-    printf("Longitud: %u\n",datagrama->longitud);
-    printf("Suma de control: %u\n",datagrama->checksum);
+    printf("Puerto origen : %u\n",ntohs(datagrama->sourceport));
+    printf("Puerto Destino: %u\n",ntohs(datagrama->destport));
+    printf("Longitud: %u\n",ntohs(datagrama->longitud));
+    printf("Suma de control: %u\n",ntohs(datagrama->checksum));
 }
 
 void icmp_mostrar(tdatagrama_icmp* datagrama){
     printf("TRAMA ICMP:\n");
     printf("Tipo: %u\n",datagrama->tipo);
     printf("Codigo: %u\n",datagrama->codigo);
-    printf("Suma de control: %u\n",datagrama->checksum);
-    printf("Identificador: %u\n", datagrama->identificador);
-    printf("Numero de Secuencia: %u\n",datagrama->num_secuencia);
+    printf("Suma de control: %u\n",ntohs(datagrama->checksum));
+    printf("Identificador: %u\n", ntohs(datagrama->identificador));
+    printf("Numero de Secuencia: %u\n",ntohs(datagrama->num_secuencia));
 }
 
 void tcp_mostrar(tdatagrama_tcp* datagrama){
     printf("TRAMA TCP:\n");
-    printf("Puerto origen : %u\n",datagrama->sourceport);
-    printf("Puerto Destino: %u\n",datagrama->destport);
-    printf("Numero de secuencia: %d\n",datagrama->numsecuencia);
-    printf("Numero de confirmacion: %d\n",datagrama->ack);
+    datagrama->offset_y_flags = ntohl(datagrama->offset_y_flags);
+    datagrama->options_y_padding = ntohl(datagrama->options_y_padding);
+    printf("Puerto origen : %u\n",ntohs(datagrama->sourceport));
+    printf("Puerto Destino: %u\n",ntohs(datagrama->destport));
+    printf("Numero de secuencia: %d\n",ntohl(datagrama->numsecuencia));
+    printf("Numero de confirmacion: %d\n",ntohl(datagrama->ack));
     printf("Desplazamiento: %d\n",(datagrama->offset_y_flags & 0xF000)>>12);
     printf("Flags: %d\n",datagrama->offset_y_flags & 0x0FFF);
-    printf("Suma de control: %u\n",datagrama->checksum);
-    printf("Puntero urgente: %u\n",datagrama->pointer);
+    printf("Suma de control: %u\n",ntohs(datagrama->checksum));
+    printf("Puntero urgente: %u\n",ntohs(datagrama->pointer));
     printf("Opciones: %d\n",(datagrama->options_y_padding & 0xFFF0)>>4);
     printf("Padding: %d\n",datagrama->options_y_padding & 0x000F);
 }
