@@ -162,7 +162,7 @@ typedef struct{
     int tcp;
 } estadisticas;
 
-estadisticas e;
+struct estadisticas e;
 
 void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);//He añadido a la cabecera 
 void recoger_datos_estadisticos(const char*);
