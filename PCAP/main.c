@@ -30,12 +30,15 @@ cabeceras IP.
  
 #define TIPO_EN_VIVO 1 
 #define TIPO_EN_FICHERO 2 
+
+
+
 typedef struct { 
   unsigned char byte1; 
   unsigned char byte2; 
   unsigned char byte3; 
   unsigned char byte4;  
-} tdireccion_ip; 
+} tdireccion_ip;
 
 typedef struct {
     unsigned short sourceport;
@@ -72,6 +75,9 @@ typedef struct {
     short int porig,pdest;
     int paso;
 } cuadrupla;
+
+cuadrupla c [300];//300 para ir sobrados.
+int utiles = 0;
 
 typedef struct { 
   unsigned char version_longcabecera; /* 4 bits versio'n, 4 bits longitud de cabecera */ 
@@ -162,8 +168,69 @@ typedef struct{
     int tcp;
 } estadisticas;
 
-struct estadisticas e;
+estadisticas e;
 
+
+int es_conexion(unsigned short datagrama){
+    fprintf(stderr, "Error");
+    if ((datagrama & 0x02) != 0){//es SYN
+        //if (datagrama & ACK != 0) // Tambien es ACK
+                return 1;
+    }
+    else{
+        return 0;
+    }
+}
+
+int buscar_array(tdatagrama_tcp* datagrama, tdireccion_ip origen, tdireccion_ip destino){
+    int i;
+    int encontrado = 0;
+    for (i = 0; i<300; i++){
+        if (comparar_tramas(datagrama, origen, destino,i)){
+            c[i].paso++;
+            encontrado=1;
+            if (c[i]. paso == 2 || c[i].paso == 5)
+                c[i].paso++;
+        }
+    }
+    
+    if (encontrado == 0){
+        c[utiles].ipdest = destino;
+        c[utiles].iporig = origen;
+        c[utiles].pdest = datagrama->destport;
+        c[utiles].porig = datagrama->sourceport;
+        c[utiles].paso = 0;
+        utiles++;
+    }
+}
+int comparar_tramas(tdatagrama_tcp* datagrama, tdireccion_ip origen, tdireccion_ip destino, int i){
+    fprintf(stderr, "entro en if");
+    if (((c[i].iporig.byte1 == origen.byte1 )
+        && (c[i].iporig.byte2 == origen.byte2 )
+        && (c[i].iporig.byte3 == origen.byte3 )
+        && (c[i].iporig.byte4 == origen.byte4 )
+        && (c[i].ipdest.byte1 == destino.byte1 )
+        && (c[i].ipdest.byte2 == destino.byte2 )
+        && (c[i].ipdest.byte3 == destino.byte3 )
+        && (c[i].ipdest.byte4 == destino.byte4 )
+        && (c[i].porig == datagrama->sourceport)
+        && (c[i].pdest == datagrama->destport))
+        || (c[i].iporig.byte1 == destino.byte1 )
+        && (c[i].iporig.byte2 == destino.byte2 )
+        && (c[i].iporig.byte3 == destino.byte3 )
+        && (c[i].iporig.byte4 == destino.byte4 )
+        && (c[i].ipdest.byte1 == origen.byte1)
+        && (c[i].ipdest.byte2 == origen.byte2)
+        && (c[i].ipdest.byte3 == origen.byte3)
+        && (c[i].ipdest.byte4 == origen.byte4)
+        && (c[i].porig == datagrama->destport)
+        && (c[i].pdest == datagrama->sourceport)){
+        return 1;
+    }
+        
+    else
+        return 0;
+}
 void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);//He añadido a la cabecera 
 void recoger_datos_estadisticos(const char*);
 void mostrar_datos_estadisticos();
@@ -202,8 +269,6 @@ int mostrar_interfaces_disponibles(void){
   return n_interfaces;
 } 
 
-cuadrupla c [100];
-int i = 0;
 main(int argc, char **argv) { 
   estadisticas e;
   struct bpf_program filtro; 
@@ -267,7 +332,14 @@ main(int argc, char **argv) {
                     fprintf(stderr, "Error al capturar paquetes\n");
                     return 1;
                 }else {
-                mostrar_datos_estadisticos();
+                //mostrar_datos_estadisticos();
+                    int i = 0;
+                    for (i = 0; i<utiles; i++){
+                        if ((c[i].paso % 6) == 0)
+                            printf("Conexion erronea");
+                        else
+                            printf("Conexion correcta");
+                    }
                 return 0;
                 }                
           break;
@@ -350,9 +422,12 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
     ip_mostrar(*datagrama);
     longitud = 4*(datagrama->version_longcabecera & 0x0F);
     if (strcmp((getprotobynumber(datagrama->protocolo)->p_name),"tcp")==0){
-        int ack,syn;
-        ack = datagrama_tcp->offset_y_flags & ACK;
-        syn = datagrama_tcp->offset_y_flags & SYN;
+        int conexion;
+        conexion = es_conexion(datagrama_tcp->offset_y_flags);
+        if (conexion == 1){
+            buscar_array(datagrama_tcp, datagrama->dir_origen, datagrama->dir_destino);
+        }
+
         datagrama_tcp = (tdatagrama_tcp *) (pkt_data+sizeof(ttrama_ethernet)+longitud);
         datagrama_tcp->destport = ntohs(datagrama_tcp->destport);
         datagrama_tcp->sourceport = ntohs(datagrama_tcp->sourceport);
@@ -363,14 +438,7 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
             recoger_datos_estadisticos("ftp");
         }
         recoger_datos_estadisticos("tcp");
-        if (syn != 0){
-            c[i].porig = datagrama_tcp->sourceport;
-            c[i].pdest = datagrama_tcp->destport;
-            c[i].paso = 1;
-            c[i].ipdest = datagrama->dir_destino;
-            c[i].iporig = datagrama->dir_origen;            
-            i++;
-        }
+        
         //comprobar si es una trama de tipo 2 o tipo 3. si lo son, recorrer el struct cuadrupla
         //comparando ip's y puertos y si coincide con alguna, aumentar paso++. al final, recorrer el struct entero y ver si
         //algun paso es menor de 3; si lo es, será una conexión fallida.
@@ -382,7 +450,7 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
         udp_mostrar(datagrama_udp);
     }
     else if(strcmp(getprotobynumber(datagrama->protocolo)->p_name,"icmp")==0){
-        datagrama_icmp = (tdatagrama_icmp *) ( pkt_data + sizeof(ttrama_ethernet)+longitud);
+        datagrama_icmp = (tdatagrama_icmp *) (pkt_data + sizeof(ttrama_ethernet)+longitud);
         recoger_datos_estadisticos("icmp");
         icmp_mostrar(datagrama_icmp);
     }
