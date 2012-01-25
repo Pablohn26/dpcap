@@ -171,22 +171,26 @@ typedef struct{
 estadisticas e;
 
 
-int es_conexion(unsigned short datagrama){
-    fprintf(stderr, "Error");
-    if ((datagrama & 0x02) != 0){//es SYN
+int es_conexion(unsigned short flags){
+    if ((flags & 0x02) != 0){//es SYN
         //if (datagrama & ACK != 0) // Tambien es ACK
                 return 1;
     }
     else{
-        return 0;
+        if ((flags && 0x01) != 0){
+                return 1;
+        }
+        else
+                return 0;
+        }
     }
-}
 
-int buscar_array(tdatagrama_tcp* datagrama, tdireccion_ip origen, tdireccion_ip destino){
+int buscar_array(unsigned short porig, unsigned short pdest, tdireccion_ip origen, tdireccion_ip destino){
     int i;
     int encontrado = 0;
-    for (i = 0; i<300; i++){
-        if (comparar_tramas(datagrama, origen, destino,i)){
+    for (i = 0; i<300 && !encontrado; i++){
+        if (comparar_tramas(porig, pdest, origen, destino,i) == 1){
+            printf("Trama encontrada en el array");
             c[i].paso++;
             encontrado=1;
             if (c[i]. paso == 2 || c[i].paso == 5)
@@ -195,36 +199,37 @@ int buscar_array(tdatagrama_tcp* datagrama, tdireccion_ip origen, tdireccion_ip 
     }
     
     if (encontrado == 0){
+        printf("meto conexion nueva");
         c[utiles].ipdest = destino;
         c[utiles].iporig = origen;
-        c[utiles].pdest = datagrama->destport;
-        c[utiles].porig = datagrama->sourceport;
+        c[utiles].pdest = pdest;
+        c[utiles].porig = porig;
         c[utiles].paso = 0;
         utiles++;
     }
 }
-int comparar_tramas(tdatagrama_tcp* datagrama, tdireccion_ip origen, tdireccion_ip destino, int i){
-    fprintf(stderr, "entro en if");
-    if (((c[i].iporig.byte1 == origen.byte1 )
-        && (c[i].iporig.byte2 == origen.byte2 )
-        && (c[i].iporig.byte3 == origen.byte3 )
-        && (c[i].iporig.byte4 == origen.byte4 )
-        && (c[i].ipdest.byte1 == destino.byte1 )
-        && (c[i].ipdest.byte2 == destino.byte2 )
-        && (c[i].ipdest.byte3 == destino.byte3 )
-        && (c[i].ipdest.byte4 == destino.byte4 )
-        && (c[i].porig == datagrama->sourceport)
-        && (c[i].pdest == datagrama->destport))
-        || (c[i].iporig.byte1 == destino.byte1 )
-        && (c[i].iporig.byte2 == destino.byte2 )
-        && (c[i].iporig.byte3 == destino.byte3 )
-        && (c[i].iporig.byte4 == destino.byte4 )
+int comparar_tramas(unsigned short puertoorigen, unsigned short puertodestino, tdireccion_ip origen, tdireccion_ip destino, int i){
+    if (((c[i].iporig.byte1 == origen.byte1)
+        && (c[i].iporig.byte2 == origen.byte2)
+        && (c[i].iporig.byte3 == origen.byte3)
+        && (c[i].iporig.byte4 == origen.byte4)
+        && (c[i].ipdest.byte1 == destino.byte1)
+        && (c[i].ipdest.byte2 == destino.byte2)
+        && (c[i].ipdest.byte3 == destino.byte3)
+        && (c[i].ipdest.byte4 == destino.byte4)
+        && (c[i].porig == puertoorigen)
+        && (c[i].pdest == puertodestino))
+        || ((c[i].iporig.byte1 == destino.byte1)
+        && (c[i].iporig.byte2 == destino.byte2)
+        && (c[i].iporig.byte3 == destino.byte3)
+        && (c[i].iporig.byte4 == destino.byte4)
         && (c[i].ipdest.byte1 == origen.byte1)
         && (c[i].ipdest.byte2 == origen.byte2)
         && (c[i].ipdest.byte3 == origen.byte3)
         && (c[i].ipdest.byte4 == origen.byte4)
-        && (c[i].porig == datagrama->destport)
-        && (c[i].pdest == datagrama->sourceport)){
+        && (c[i].porig == puertodestino)
+        && (c[i].pdest == puertoorigen))){
+        printf("mira como no entro aqui");
         return 1;
     }
         
@@ -335,10 +340,10 @@ main(int argc, char **argv) {
                 //mostrar_datos_estadisticos();
                     int i = 0;
                     for (i = 0; i<utiles; i++){
-                        if ((c[i].paso % 6) == 0)
+                        /*if ((c[i].paso % 6) != 0)
                             printf("Conexion erronea");
                         else
-                            printf("Conexion correcta");
+                            printf("Conexion correcta");*/
                     }
                 return 0;
                 }                
@@ -419,18 +424,19 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   trama=(ttrama_ethernet *)(pkt_data);
   if(ntohs(trama->tipo)== ETHERTYPE_IP){ 
     datagrama=(tdatagrama_ip *)(pkt_data+sizeof(ttrama_ethernet));
-    ip_mostrar(*datagrama);
+    //ip_mostrar(*datagrama);
     longitud = 4*(datagrama->version_longcabecera & 0x0F);
     if (strcmp((getprotobynumber(datagrama->protocolo)->p_name),"tcp")==0){
-        int conexion;
-        conexion = es_conexion(datagrama_tcp->offset_y_flags);
-        if (conexion == 1){
-            buscar_array(datagrama_tcp, datagrama->dir_origen, datagrama->dir_destino);
-        }
-
         datagrama_tcp = (tdatagrama_tcp *) (pkt_data+sizeof(ttrama_ethernet)+longitud);
         datagrama_tcp->destport = ntohs(datagrama_tcp->destport);
         datagrama_tcp->sourceport = ntohs(datagrama_tcp->sourceport);
+        int conexion;
+        conexion = es_conexion(datagrama_tcp->offset_y_flags);
+        if (conexion == 1){
+            buscar_array(datagrama_tcp->sourceport, datagrama_tcp->destport, datagrama->dir_origen, datagrama->dir_destino);
+        }
+
+        
         if (datagrama_tcp->destport == 23 || datagrama_tcp->sourceport == 23){//telnet
             recoger_datos_estadisticos("telnet");
         }
@@ -442,21 +448,21 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
         //comprobar si es una trama de tipo 2 o tipo 3. si lo son, recorrer el struct cuadrupla
         //comparando ip's y puertos y si coincide con alguna, aumentar paso++. al final, recorrer el struct entero y ver si
         //algun paso es menor de 3; si lo es, será una conexión fallida.
-        tcp_mostrar(datagrama_tcp);
+        //tcp_mostrar(datagrama_tcp);
     }
     else if(strcmp(getprotobynumber(datagrama->protocolo)->p_name,"udp")==0){
         datagrama_udp = (tdatagrama_udp *) (pkt_data + sizeof(ttrama_ethernet)+longitud);
         recoger_datos_estadisticos("udp");
-        udp_mostrar(datagrama_udp);
+        //udp_mostrar(datagrama_udp);
     }
     else if(strcmp(getprotobynumber(datagrama->protocolo)->p_name,"icmp")==0){
         datagrama_icmp = (tdatagrama_icmp *) (pkt_data + sizeof(ttrama_ethernet)+longitud);
         recoger_datos_estadisticos("icmp");
-        icmp_mostrar(datagrama_icmp);
+        //icmp_mostrar(datagrama_icmp);
     }
   }
   else{
-      fprintf(stderr, "No es un datagrama ip");
+      //fprintf(stderr, "No es un datagrama ip");
   }
 
 }
