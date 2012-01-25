@@ -74,9 +74,10 @@ typedef struct {
     tdireccion_ip iporig, ipdest;
     unsigned short porig,pdest;
     int paso;
+    int carga;
 } cuadrupla;
 
-cuadrupla c [300];//300 para ir sobrados.
+cuadrupla c [15];
 int utiles = 0;
 
 typedef struct { 
@@ -170,45 +171,52 @@ typedef struct{
 
 estadisticas e;
 
-int es_conexion(unsigned char flags){
-    if ((flags&0x02) != 0){//es SYN
-        printf("Syn\n");
-        if ((flags&0x10)!= 0){//comienza la transmision de datos
-        }
-        return 1;
-    }
-    else if ((flags&0x01) != 0){//es FIN
-        printf("FIN\n");
-        return 1;
-    }
-    else{
-        return 0;
-        }
-    }
+void aumentar_carga(tdatagrama_tcp* datagrama, tdireccion_ip orig, tdireccion_ip dest){
+    int i = 0;
+    int encontrado = 0;
+    for (i = utiles-1; i>=0 && !encontrado; i--){
+            if (comparar_tramas(datagrama, orig, dest, i) == 1){
+                //fprintf(stderr, "%i \n", strlen(datagrama->datos));
+                //c[i].carga += strlen(datagrama->datos);
+            }
 
-int buscar_array(tdatagrama_tcp* datagrama, tdireccion_ip origen, tdireccion_ip destino){
+    }
+}
+int es_conexion(unsigned char flags){
+    if (((flags & 0x02) != 0)  && (flags & 0x10) == 0){//es SYN y no ACK. Creamos la conexion
+        return 1;
+    }
+    else if ((((flags&0x02)!=0) && ((flags&0x10) != 0)) || ((flags&0x01)!= 0) || (((flags&0x10 )!= 0) && ((flags&0x01)!= 0)))//SYN + ACK o FIN o FIN+ACK
+        return 2;
+    else if ((flags & 0x02) == 0 && (flags & 0x10) != 0){//comienza la transmision de datos
+        return 3;
+        }
+}
+
+int aumentar_paso(tdatagrama_tcp* datagrama, tdireccion_ip origen, tdireccion_ip destino){
     int i;
     int encontrado = 0;
-    for (i = 0; i<300 && !encontrado; i++){
+    for (i = utiles-1; i>=0 && !encontrado; i--){
         if (comparar_tramas(datagrama, origen, destino,i) == 1){
-            c[i].paso++;
-            encontrado=1;
-            if (c[i]. paso == 2 || c[i].paso == 5){
+            if (c[i].paso < 6){
                 c[i].paso++;
-                //printf("HOLAAAAAAAA");
+                encontrado=1;
+                if (c[i]. paso == 2 || c[i].paso == 5){
+                    c[i].paso++;
+                }
             }
         }
     }
     
-    if (encontrado == 0){
-        c[utiles].ipdest = destino;
-        c[utiles].iporig = origen;
-        c[utiles].pdest = datagrama->destport;
-        c[utiles].porig = datagrama->sourceport;
-        c[utiles].paso = 0;
-        utiles++;
-        printf("Introduzco nueva conexion\n");
-    }
+}
+
+void iniciar_conexion(tdatagrama_tcp *datagrama, tdireccion_ip orig, tdireccion_ip destino){
+    c[utiles].ipdest = destino;
+    c[utiles].iporig = orig;
+    c[utiles].pdest = datagrama->destport;
+    c[utiles].porig = datagrama->sourceport;
+    c[utiles].paso = 1;
+    utiles++;
 }
 int comparar_tramas(tdatagrama_tcp* datagrama, tdireccion_ip origen, tdireccion_ip destino, int i){
     if ((c[i].iporig.byte1 == origen.byte1)
@@ -221,10 +229,9 @@ int comparar_tramas(tdatagrama_tcp* datagrama, tdireccion_ip origen, tdireccion_
         && (c[i].ipdest.byte4 == destino.byte4)
         && (c[i].porig == datagrama->sourceport)
         && (c[i].pdest == datagrama->destport)){
-        printf("Al derecho\n");
         return 1;
     }
-    if((c[i].iporig.byte1 == destino.byte1)
+    else if((c[i].iporig.byte1 == destino.byte1)
         && (c[i].iporig.byte2 == destino.byte2)
         && (c[i].iporig.byte3 == destino.byte3)
         && (c[i].iporig.byte4 == destino.byte4)
@@ -234,7 +241,6 @@ int comparar_tramas(tdatagrama_tcp* datagrama, tdireccion_ip origen, tdireccion_
         && (c[i].ipdest.byte4 == origen.byte4)
         && (c[i].porig == datagrama->destport)
         && (c[i].pdest == datagrama->sourceport)){
-        printf("Al reves\n");
         return 1;
     }
         
@@ -331,11 +337,12 @@ main(int argc, char **argv) {
     int i = 0;
     int correctas = 0, incorrectas = 0;
     for (i = 0; i<utiles; i++){
-        if (c[i].paso % 6 == 0){
+        if (c[i].paso == 6){
             correctas++;
         }
         else
             incorrectas++;
+        printf("Carga de la trama %i:\n", c[i].carga);
     }
     printf("Correctas: %i\n",correctas);
     printf("Incorrectas: %i\n", incorrectas);
@@ -420,7 +427,6 @@ main(int argc, char **argv) {
       fprintf(stderr, "Error al capturar paquetes");
   }
     int i = 0;
-    printf("\n%i\n", utiles);
     for (i = 0; i<utiles; i++){
         if ((c[i].paso % 6) != 0)
             printf("Conexion erronea");
@@ -452,12 +458,16 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
         datagrama_tcp->destport = ntohs(datagrama_tcp->destport);
         datagrama_tcp->sourceport = ntohs(datagrama_tcp->sourceport);
         int conexion;
-        conexion = es_conexion((ntohs(datagrama_tcp->offset_reserved_y_flags)) & 0x002F);
+        conexion = es_conexion((ntohs(datagrama_tcp->offset_reserved_y_flags)) & 0x001F);
         if (conexion == 1){
-            buscar_array(datagrama_tcp, datagrama->dir_origen, datagrama->dir_destino);
+            iniciar_conexion(datagrama_tcp, datagrama->dir_origen, datagrama->dir_destino);
         }
-
-        
+        else if(conexion == 2){
+            aumentar_paso(datagrama_tcp, datagrama->dir_origen, datagrama->dir_destino);
+        }
+        else if (conexion == 3){
+            aumentar_carga(datagrama_tcp, datagrama->dir_origen, datagrama->dir_destino);
+        }
         if (datagrama_tcp->destport == 23 || datagrama_tcp->sourceport == 23){//telnet
             recoger_datos_estadisticos("telnet");
         }
