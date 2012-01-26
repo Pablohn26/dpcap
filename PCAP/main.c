@@ -286,7 +286,7 @@ int mostrar_interfaces_disponibles(void){
   return n_interfaces;
 } 
 
-main(int argc, char **argv) { 
+int main(int argc, char **argv) { 
   estadisticas e;
   struct bpf_program filtro; 
   bpf_u_int32 mascara_red, direccion_red; 
@@ -367,6 +367,23 @@ main(int argc, char **argv) {
                     return 1;
                 }else {
                 mostrar_datos_estadisticos();
+                if(strcmp(argv[3],"tcp")){
+                    return e.tcp;
+                }else
+                if(strcmp(argv[3],"icmp")){
+                    return e.icmp;
+                }else
+                if(strcmp(argv[3],"ftp")){
+                    return e.ftp;
+                }else
+                if(strcmp(argv[3],"telnet")){
+                    return e.telnet;
+                }else
+                if(strcmp(argv[3],"udp")){
+                    return e.udp;
+                }else return -1;
+                    
+                    
                 }                
           break;
           case 'i':
