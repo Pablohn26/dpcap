@@ -74,7 +74,7 @@ typedef struct {
     tdireccion_ip iporig, ipdest;
     unsigned short porig,pdest;
     int paso;
-    int carga;
+    unsigned long int carga;
 } cuadrupla;
 
 cuadrupla c [15];
@@ -171,13 +171,14 @@ typedef struct{
 
 estadisticas e;
 
-void aumentar_carga(tdatagrama_tcp* datagrama, tdireccion_ip orig, tdireccion_ip dest){
+void aumentar_carga(tdatagrama_tcp* datagrama, tdatagrama_ip* dat_ip, bpf_u_int32 len){
     int i = 0;
     int encontrado = 0;
     for (i = utiles-1; i>=0 && !encontrado; i--){
-            if (comparar_tramas(datagrama, orig, dest, i) == 1){
-                //fprintf(stderr, "%i \n", strlen(datagrama->datos));
-                //c[i].carga += strlen(datagrama->datos);
+            if (comparar_tramas(datagrama, dat_ip->dir_origen, dat_ip->dir_destino, i) == 1){
+                c[i].carga += len - sizeof (ttrama_ethernet)
+                - 4 * (dat_ip->version_longcabecera & 0x0F)
+                - 4 * (ntohs(datagrama->offset_reserved_y_flags) >> 12);
             }
 
     }
@@ -188,7 +189,7 @@ int es_conexion(unsigned char flags){
     }
     else if ((((flags&0x02)!=0) && ((flags&0x10) != 0)) || ((flags&0x01)!= 0) || (((flags&0x10 )!= 0) && ((flags&0x01)!= 0)))//SYN + ACK o FIN o FIN+ACK
         return 2;
-    else if ((flags & 0x02) == 0 && (flags & 0x10) != 0){//comienza la transmision de datos
+    else if ((flags & 0x02) == 0 && (flags & 0x10) != 0){//comienza la transmision de datos ACK & no SYN
         return 3;
         }
 }
@@ -342,7 +343,7 @@ int main(int argc, char **argv) {
         }
         else
             incorrectas++;
-        printf("Carga de la trama %i:\n", c[i].carga);
+        printf("Carga de la trama %i: %lu\n",i, c[i].carga);
     }
     printf("Correctas: %i\n",correctas);
     printf("Incorrectas: %i\n", incorrectas);
@@ -463,7 +464,7 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
   ttrama_ethernet *trama;
   unsigned char longitud;
   /* print pkt timestamp and pkt len */
-  //printf("%ld : %ld (%ui)\n", header->ts.tv_sec, header->ts.tv_usec, header->len);          
+  //printf("%ld : %ld (%ui)\n", header->ts.tv_sec, header->ts.tv_usec, header->len);
   /* Comprobamos que sea un datagrama IP */
   trama=(ttrama_ethernet *)(pkt_data);
   if(ntohs(trama->tipo)== ETHERTYPE_IP){ 
@@ -483,7 +484,7 @@ void dispatcher_handler(u_char *temp1, const struct pcap_pkthdr *header, const u
             aumentar_paso(datagrama_tcp, datagrama->dir_origen, datagrama->dir_destino);
         }
         else if (conexion == 3){
-            aumentar_carga(datagrama_tcp, datagrama->dir_origen, datagrama->dir_destino);
+            aumentar_carga(datagrama_tcp, datagrama, header->len);
         }
         if (datagrama_tcp->destport == 23 || datagrama_tcp->sourceport == 23){//telnet
             recoger_datos_estadisticos("telnet");
