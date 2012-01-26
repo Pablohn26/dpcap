@@ -176,9 +176,7 @@ void aumentar_carga(tdatagrama_tcp* datagrama, tdatagrama_ip* dat_ip, bpf_u_int3
     int encontrado = 0;
     for (i = utiles-1; i>=0 && !encontrado; i--){
             if (comparar_tramas(datagrama, dat_ip->dir_origen, dat_ip->dir_destino, i) == 1){
-                c[i].carga += len - sizeof (ttrama_ethernet)
-                - 4 * (dat_ip->version_longcabecera & 0x0F)
-                - 4 * (ntohs(datagrama->offset_reserved_y_flags) >> 12);
+                c[i].carga += len - sizeof (ttrama_ethernet) - 4 * (dat_ip->version_longcabecera & 0x0F) - 4 * (ntohs(datagrama->offset_reserved_y_flags) >> 12);
             }
 
     }
@@ -251,7 +249,7 @@ int comparar_tramas(tdatagrama_tcp* datagrama, tdireccion_ip origen, tdireccion_
 }
 void dispatcher_handler(u_char *, const struct pcap_pkthdr *, const u_char *);//He añadido a la cabecera 
 void recoger_datos_estadisticos(const char*);
-void mostrar_datos_estadisticos();
+int mostrar_datos_estadisticos(char* protocolo);
 void tcp_mostrar(tdatagrama_tcp* datagrama);
 void udp_mostrar(tdatagrama_udp* datagrama);
 void icmp_mostrar(tdatagrama_icmp* datagrama);
@@ -338,12 +336,33 @@ int main(int argc, char **argv) {
     int i = 0;
     int correctas = 0, incorrectas = 0;
     for (i = 0; i<utiles; i++){
+        printf("CONEXION %i\n", i);
+         printf("IP origen: %3d.%3d.%3d.%3d \n",
+                c[i].iporig.byte1,
+                c[i].iporig.byte2,
+                c[i].iporig.byte3,
+                c[i].iporig.byte4);
+
+        printf("IP destino: %3d.%3d.%3d.%3d \n",
+                c[i].ipdest.byte1,
+                c[i].ipdest.byte2,
+                c[i].ipdest.byte3,
+                c[i].ipdest.byte4);
+
+        printf("Puerto de origen: %d \n", c[i].porig);
+        printf("Puerto de destino: %d \n", c[i].pdest);
         if (c[i].paso == 6){
             correctas++;
         }
         else
             incorrectas++;
         printf("Carga de la trama %i: %lu\n",i, c[i].carga);
+        if (c[i].paso == 6){
+            printf("Conexion correcta\n\n\n");
+        }
+        else{
+            printf("Conexion incorrecta\n\n\n");
+        }
     }
     printf("Correctas: %i\n",correctas);
     printf("Incorrectas: %i\n", incorrectas);
@@ -367,24 +386,7 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "Error al capturar paquetes\n");
                     return 1;
                 }else {
-                mostrar_datos_estadisticos();
-                if(strcmp(argv[3],"tcp")){
-                    return e.tcp;
-                }else
-                if(strcmp(argv[3],"icmp")){
-                    return e.icmp;
-                }else
-                if(strcmp(argv[3],"ftp")){
-                    return e.ftp;
-                }else
-                if(strcmp(argv[3],"telnet")){
-                    return e.telnet;
-                }else
-                if(strcmp(argv[3],"udp")){
-                    return e.udp;
-                }else return -1;
-                    
-                    
+                    return mostrar_datos_estadisticos(argv[3]);
                 }                
           break;
           case 'i':
@@ -404,7 +406,7 @@ int main(int argc, char **argv) {
             }
             while(1){
                 pcap_loop(fp,20,dispatcher_handler, NULL);//desde interfaz, cnt = 100, pero pongo 20 porque si no nos morimos esperando
-                mostrar_datos_estadisticos();
+                mostrar_datos_estadisticos(argv[3]);
                 sleep(5);
             }
           break;
@@ -546,7 +548,7 @@ void recoger_datos_estadisticos(const char* c){
     }else printf("Protocolo desconocido");
 }
 
-void mostrar_datos_estadisticos(){
+int mostrar_datos_estadisticos(char* protocolo){
     printf("\n \n \n");
     int total = e.icmp + e.udp + e.tcp +e.desconocidos;
     printf("Numero total de paquetes: %d\n",total);
@@ -556,6 +558,24 @@ void mostrar_datos_estadisticos(){
     printf("FTP: %d\n",e.ftp);
     printf("TCP: %d\n",e.tcp);
     printf("DESCONOCIDOS: %d\n",e.desconocidos);
+    if(strcmp(protocolo,"tcp") == 0){
+        printf("TCP aqui vale: %d",e.tcp);
+        return e.tcp;
+    }else
+        if(strcmp(protocolo,"icmp") == 0){
+            return e.icmp;
+    }else
+        if(strcmp(protocolo,"ftp")==0){
+            return e.ftp;
+    }else
+        if(strcmp(protocolo,"telnet") == 0){
+            return e.telnet;
+    }else
+        if(strcmp(protocolo,"udp")==0){
+            return e.udp;
+    }else return -1;
+                    
+                    
 }
 
 void udp_mostrar(tdatagrama_udp* datagrama){
